@@ -38,3 +38,11 @@ Copie este arquivo para um Pen Drive ou Rede e instale nos computadores desejado
 - **Banco de Dados**: Local (IndexedDB) - Funciona offline.
 - **Tema**: Claro/Escuro persistente.
 - **Backup**: Sistema integrado de backup e restauração JSON.
+
+No computador que será o Servidor:
+Instale as dependências: npm install express cors body-parser ip
+Rode o servidor: node server/index.js
+Nos computadores Clientes:
+Abra o App.
+Na tela de Login, clique na Engrenagem.
+Digite o IP que aparecerá no terminal do computador servidor (ex: 192.168.1.15).
