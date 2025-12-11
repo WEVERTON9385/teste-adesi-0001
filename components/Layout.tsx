@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Calendar, Stamp, Users, Moon, Sun, LogOut, Menu, X, BarChart3, History, Lock, KeyRound, Cloud, Check } from 'lucide-react';
+import { LayoutDashboard, Calendar, Stamp, Users, Moon, Sun, LogOut, Menu, X, BarChart3, History, Lock, KeyRound, Cloud, Check, RefreshCw } from 'lucide-react';
 import { ViewState, User, ActivityLog } from '../types';
 import { storageService } from '../services/storage';
+
+// Constante de versão definida localmente para evitar erros de importação
+const APP_VERSION = '2.0.0 Desktop';
 
 interface LayoutProps {
   currentView: ViewState;
@@ -38,20 +41,48 @@ export const Layout: React.FC<LayoutProps> = ({
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [isNetworkMode, setIsNetworkMode] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Password Change State
   const [isPwdModalOpen, setIsPwdModalOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Update logs periodically
+  // Update logs and Background Sync periodically
   useEffect(() => {
+    setIsNetworkMode(!!storageService.getServerIp());
+    
+    // Initial load
     setLogs(storageService.getLogs());
+    
     const interval = setInterval(() => {
+      // 1. Atualizar Logs
       setLogs(storageService.getLogs());
-    }, 2000);
+      
+      // 2. Se estiver em rede, sincronizar dados em background
+      if (storageService.getServerIp()) {
+         storageService.backgroundSync();
+      }
+    }, 3000); // Polling de 3 segundos
+    
     return () => clearInterval(interval);
   }, []);
+
+  const handleManualSync = async () => {
+    if (!isNetworkMode) return;
+    setIsSyncing(true);
+    // Tenta sincronizar. A função agora retorna Promise<boolean>
+    const success = await storageService.backgroundSync();
+    
+    // Pequeno delay visual
+    setTimeout(() => {
+        setIsSyncing(false);
+        if (!success) {
+            alert("Falha na sincronização. Verifique se o servidor está rodando.");
+        }
+    }, 800);
+  };
 
   const isAdmin = currentUser.role === 'admin';
   const isVendor = currentUser.role === 'vendedor';
@@ -84,7 +115,10 @@ export const Layout: React.FC<LayoutProps> = ({
             {/* Logo Section */}
             <div className="flex items-center gap-4">
               <div className="flex flex-col leading-none select-none">
-                 <span className="text-2xl font-black tracking-tighter text-black dark:text-white">CRS</span>
+                 <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-black tracking-tighter text-black dark:text-white">CRS</span>
+                    <span className="text-[0.6rem] font-bold text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-white/10 px-1 rounded">v{APP_VERSION}</span>
+                 </div>
                  <span className="text-[0.6rem] font-bold tracking-[0.6em] text-gray-500 dark:text-gray-400 uppercase">Vision</span>
               </div>
             </div>
@@ -116,10 +150,28 @@ export const Layout: React.FC<LayoutProps> = ({
 
             {/* Right Actions */}
             <div className="hidden md:flex items-center gap-2 pl-4 border-l border-gray-200 dark:border-white/10">
-               {!isVendor && (
-                   <div className="hidden lg:flex items-center gap-2 mr-4 text-[10px] text-green-600 dark:text-green-400 font-bold uppercase tracking-widest bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-800">
-                      <Cloud className="w-3 h-3" />
-                      Salvo
+               
+               {/* Network Status Badge & Manual Sync */}
+               {isNetworkMode ? (
+                   <div className="hidden lg:flex items-center gap-2 mr-2">
+                       <button 
+                         onClick={handleManualSync}
+                         disabled={isSyncing}
+                         className={`group flex items-center gap-2 text-[10px] text-green-600 dark:text-green-400 font-bold uppercase tracking-widest bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/40 transition-all ${isSyncing ? 'cursor-not-allowed opacity-80' : ''}`}
+                         title="Sincronizar dados com o servidor"
+                       >
+                          {isSyncing ? (
+                             <RefreshCw className="w-3 h-3 animate-spin" />
+                          ) : (
+                             <Cloud className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                          )}
+                          {isSyncing ? 'Sincronizando...' : 'Sincronizar Agora'}
+                       </button>
+                   </div>
+               ) : (
+                   <div className="hidden lg:flex items-center gap-2 mr-2 text-[10px] text-gray-500 font-bold uppercase tracking-widest bg-gray-100 dark:bg-white/5 px-3 py-1.5 rounded-full cursor-not-allowed" title="Modo Offline - Dados apenas locais">
+                      <Cloud className="w-3 h-3 opacity-50" />
+                      Offline
                    </div>
                )}
 
@@ -187,7 +239,7 @@ export const Layout: React.FC<LayoutProps> = ({
                     <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                  </span>
-                 Sync
+                 {isNetworkMode ? 'Rede Sync' : 'Local'}
               </div>
             </div>
             
@@ -226,7 +278,7 @@ export const Layout: React.FC<LayoutProps> = ({
             
             <div className="p-4 border-t border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-black/20 flex-none">
                <div className="text-[10px] text-center text-gray-400">
-                 Backup automático ativo.
+                 Backup automático ativo &bull; v{APP_VERSION}
                </div>
             </div>
           </aside>

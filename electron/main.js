@@ -1,6 +1,23 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
+// Variável para manter referência ao servidor
+let serverProcess = null;
+
+function startServer() {
+  try {
+    // Em produção, iniciamos o servidor API internamente
+    // Isso permite que o app funcione como Servidor na rede
+    const serverPath = path.join(__dirname, '../server/index.js');
+    console.log('Iniciando servidor interno:', serverPath);
+    
+    // Require executa o arquivo e inicia o express listener
+    require(serverPath);
+  } catch (error) {
+    console.error('Falha ao iniciar servidor interno:', error);
+  }
+}
+
 function createWindow() {
   const isDev = !app.isPackaged;
   
@@ -29,11 +46,17 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // Em desenvolvimento carrega o localhost, em produção carrega o arquivo compilado
+  // Lógica de Carregamento
   if (isDev) {
+    // Em desenvolvimento: conecta ao Vite (npm run dev)
     mainWindow.loadURL('http://localhost:5173');
     // mainWindow.webContents.openDevTools(); // Debug: Ctrl+Shift+I
   } else {
+    // Em produção: 
+    // 1. Inicia o servidor backend
+    startServer();
+    
+    // 2. Carrega o frontend estático
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 }

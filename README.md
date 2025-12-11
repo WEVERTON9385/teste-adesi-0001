@@ -1,39 +1,40 @@
 # CRS Vision Manager - Versão Desktop
 
-Este projeto está configurado para ser compilado como um aplicativo Windows (.exe) usando Electron.
+Este projeto é um sistema de controle de produção moderno, configurado para ser compilado como um aplicativo Windows (.exe) nativo usando Electron.
 
-## Como Gerar o Instalador (.exe)
+## 🚀 Como Gerar o Instalador (.exe)
 
-Siga os passos abaixo no terminal do seu computador (VS Code, CMD ou PowerShell):
+Para criar o arquivo de instalação final que será usado nos computadores da empresa, siga estes passos no terminal do seu editor de código:
 
-### 1. Instalar Dependências
-Primeiro, baixe as bibliotecas necessárias.
+### 1. Instalar as Ferramentas (Faça uma única vez)
 ```bash
 npm install
 ```
 
-### 2. Testar o App (Opcional)
-Para rodar o app em modo de desenvolvimento (janela desktop + hot reload).
-```bash
-npm run electron:dev
-```
-
-### 3. Criar o Executável
-Este comando irá compilar o código React e empacotá-lo em um instalador Windows.
+### 2. Criar o Executável
+Este comando irá compilar todo o código, otimizar para produção e gerar o instalador Windows.
 ```bash
 npm run dist
 ```
+*Aguarde o processo finalizar. Pode levar alguns minutos.*
 
 ---
 
-## Onde está o arquivo?
-Após o processo terminar (pode levar 1 ou 2 minutos), o instalador estará na pasta:
+## 📂 Onde está o arquivo?
+
+Após o processo terminar com sucesso, o instalador estará na pasta:
 
 `dist-electron/CRS Vision Manager Setup 2.0.0.exe`
 
-Basta copiar este arquivo para os computadores da empresa e instalar.
+Copie este arquivo para um Pen Drive ou Rede e instale nos computadores desejados.
 
 ---
 
-## Requisitos
-- Node.js instalado (versão 16 ou superior).
+## Requisitos de Desenvolvimento
+- Node.js instalado (versão 18 ou superior recomendada).
+- Ícone do aplicativo deve estar em `public/icon.ico` (opcional, mas recomendado para o build final).
+
+## Recursos
+- **Banco de Dados**: Local (IndexedDB) - Funciona offline.
+- **Tema**: Claro/Escuro persistente.
+- **Backup**: Sistema integrado de backup e restauração JSON.

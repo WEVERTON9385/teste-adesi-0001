@@ -35,13 +35,32 @@ export const OrderBoard: React.FC<OrderBoardProps> = ({ currentUser }) => {
     setAllUsers(storageService.getUsers());
   }, []);
 
+  // Helper para formatar data corrigindo fuso horário
+  const formatDateDisplay = (dateString: string) => {
+      if (!dateString) return '';
+      // Se a string for apenas YYYY-MM-DD, adicionamos meio-dia para evitar que o fuso horário retorne um dia
+      const dateToParse = dateString.includes('T') ? dateString : `${dateString}T12:00:00`;
+      return new Date(dateToParse).toLocaleDateString('pt-BR');
+  };
+
   const handleSave = () => {
     if (!formData.client || !formData.description || !formData.dueDate || !formData.ocNumber || !formData.salesperson) {
-        alert("Preencha todos os campos obrigatórios, incluindo o Vendedor.");
+        alert("Preencha todos os campos obrigatórios: Vendedor, Cliente, OC, Descrição e Data de Entrega.");
         return;
     }
 
     const isNew = !editingId;
+    
+    // Determine completion date logic
+    let completedAt = undefined;
+    if (formData.status === OrderStatus.COMPLETED) {
+        if (!formData.completedAt) {
+            alert("Para definir o status como Concluído, informe a Data de Conclusão Real.");
+            return;
+        }
+        completedAt = formData.completedAt.includes('T') ? formData.completedAt : `${formData.completedAt}T12:00:00.000Z`;
+    }
+
     const newOrder: Order = {
       id: editingId || crypto.randomUUID(),
       ocNumber: formData.ocNumber,
@@ -52,7 +71,7 @@ export const OrderBoard: React.FC<OrderBoardProps> = ({ currentUser }) => {
       dueDate: formData.dueDate,
       createdAt: editingId ? (orders.find(o => o.id === editingId)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
       salesperson: formData.salesperson,
-      completedAt: formData.status === OrderStatus.COMPLETED && !orders.find(o => o.id === editingId)?.completedAt ? new Date().toISOString() : undefined
+      completedAt: completedAt
     };
 
     const updatedOrders = storageService.saveOrder(newOrder);
@@ -107,14 +126,18 @@ export const OrderBoard: React.FC<OrderBoardProps> = ({ currentUser }) => {
       o.description.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => {
+       // Sort by Priority first, then by Due Date (closest first)
        const p = { [Priority.URGENTE]: 3, [Priority.MEDIO]: 2, [Priority.NORMAL]: 1 };
-       return p[b.priority] - p[a.priority];
+       const priorityDiff = p[b.priority] - p[a.priority];
+       if (priorityDiff !== 0) return priorityDiff;
+       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
 
   const availableVendors = allUsers.filter(u => u.role === 'vendedor' || u.role === 'admin');
 
   return (
     <div>
+      {/* --- TELA: Controles e Cabeçalho (Escondido na impressão) --- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 no-print relative">
         <div>
           <h2 className="text-4xl font-black text-black dark:text-white tracking-tighter">{isVendor ? 'Meus Pedidos' : 'Produção'}</h2>
@@ -155,7 +178,7 @@ export const OrderBoard: React.FC<OrderBoardProps> = ({ currentUser }) => {
             <button
                 onClick={() => {
                 setEditingId(null);
-                setFormData({ priority: Priority.NORMAL, status: OrderStatus.PENDING, dueDate: new Date().toISOString().split('T')[0] });
+                setFormData({ priority: Priority.NORMAL, status: OrderStatus.PENDING, dueDate: '' });
                 setIsModalOpen(true);
                 }}
                 className="bg-black dark:bg-white hover:scale-105 active:scale-95 text-white dark:text-black px-5 py-3 rounded-xl flex items-center shadow-lg shadow-black/20 dark:shadow-white/10 transition-all font-bold text-sm uppercase tracking-wide"
@@ -178,20 +201,93 @@ export const OrderBoard: React.FC<OrderBoardProps> = ({ currentUser }) => {
           </div>
       )}
 
-      {/* Print Header */}
-      <div className="hidden print:block mb-8 border-b border-black pb-4">
-        <h1 className="text-4xl font-black uppercase">CRS Vision</h1>
-        <p className="text-lg">Relatório de Produção - {new Date().toLocaleDateString()}</p>
+      {/* --- IMPRESSÃO: Layout Moderno para Relatório A4 --- */}
+      <div className="hidden print:block w-full">
+        {/* Cabeçalho do Relatório */}
+        <div className="flex justify-between items-end border-b-2 border-black pb-4 mb-6">
+           <div>
+              <h1 className="text-4xl font-black uppercase tracking-tighter">CRS Vision</h1>
+              <p className="text-sm font-medium uppercase tracking-widest text-gray-600 mt-1">Relatório de Produção</p>
+           </div>
+           <div className="text-right">
+              <div className="text-2xl font-bold">{new Date().toLocaleDateString('pt-BR')}</div>
+              <p className="text-xs text-gray-500">Emitido por: {currentUser.name}</p>
+           </div>
+        </div>
+
+        {/* Estatísticas Rápidas Impressas */}
+        <div className="flex gap-8 mb-6 text-sm">
+           <div className="border border-gray-300 px-4 py-2 rounded-lg">
+              <span className="font-bold block text-lg">{filteredOrders.length}</span>
+              <span className="text-gray-500 uppercase text-[10px]">Total de Itens</span>
+           </div>
+           <div className="border border-gray-300 px-4 py-2 rounded-lg">
+              <span className="font-bold block text-lg text-red-600">
+                {filteredOrders.filter(o => o.priority === Priority.URGENTE).length}
+              </span>
+              <span className="text-gray-500 uppercase text-[10px]">Urgentes</span>
+           </div>
+           <div className="border border-gray-300 px-4 py-2 rounded-lg">
+              <span className="font-bold block text-lg text-blue-600">
+                {filteredOrders.filter(o => o.status === OrderStatus.IN_PROGRESS).length}
+              </span>
+              <span className="text-gray-500 uppercase text-[10px]">Em Produção</span>
+           </div>
+        </div>
+
+        {/* Tabela Moderna de Relatório */}
+        <table className="w-full text-left border-collapse">
+            <thead>
+                <tr className="border-b border-black">
+                    <th className="py-2 px-2 text-[10px] font-black uppercase tracking-widest text-gray-600">OC</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase tracking-widest text-gray-600 w-1/4">Cliente</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase tracking-widest text-gray-600 w-1/3">Descrição</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase tracking-widest text-gray-600 text-center">Prioridade</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase tracking-widest text-gray-600 text-center">Status</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase tracking-widest text-gray-600 text-right">Entrega</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+                {filteredOrders.map((order, idx) => (
+                    <tr key={order.id} className={`break-inside-avoid ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                        <td className="py-3 px-2 font-mono font-bold text-sm">#{order.ocNumber}</td>
+                        <td className="py-3 px-2 font-bold text-sm truncate max-w-[150px]">{order.client}</td>
+                        <td className="py-3 px-2 text-xs text-gray-600 leading-snug">{order.description}</td>
+                        <td className="py-3 px-2 text-center">
+                            <span className={`inline-block px-2 py-0.5 text-[9px] font-bold uppercase rounded border ${
+                                order.priority === Priority.URGENTE ? 'text-red-700 border-red-700 bg-red-50' : 
+                                order.priority === Priority.MEDIO ? 'text-orange-700 border-orange-700 bg-orange-50' : 
+                                'text-gray-700 border-gray-400'
+                            }`}>
+                                {order.priority}
+                            </span>
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                             <span className="text-[10px] font-bold uppercase text-gray-800">{order.status}</span>
+                        </td>
+                        <td className="py-3 px-2 text-right font-mono font-bold text-sm">
+                            {formatDateDisplay(order.dueDate)}
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+        
+        <div className="mt-8 border-t border-gray-300 pt-4 text-[10px] text-gray-400 flex justify-between">
+           <span>CRS Vision Manager &bull; v2.0</span>
+           <span>Página 1</span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 print:grid-cols-2">
+      {/* --- TELA: Grid de Cards (Escondido na impressão) --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 print:hidden">
         {filteredOrders.length === 0 && (
             <div className="col-span-full py-20 text-center text-gray-400">
                 <p>Nenhuma ordem de produção encontrada.</p>
             </div>
         )}
         {filteredOrders.map(order => (
-          <div key={order.id} className="group relative bg-white dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl p-6 hover:border-gray-300 dark:hover:border-white/20 transition-all duration-300 print:border-black break-inside-avoid">
+          <div key={order.id} className="group relative bg-white dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl p-6 hover:border-gray-300 dark:hover:border-white/20 transition-all duration-300">
             {/* OC Number Badge */}
             <div className="absolute -top-3 -right-3">
                <div className="bg-black dark:bg-white text-white dark:text-black text-xs font-black px-3 py-1 rounded-lg shadow-lg flex items-center gap-1">
@@ -210,7 +306,7 @@ export const OrderBoard: React.FC<OrderBoardProps> = ({ currentUser }) => {
               </span>
               
               {!isVendor && (
-                  <div className="flex gap-2 no-print opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => openEdit(order)} className="text-gray-400 hover:text-white transition-colors">
                     <Edit2 className="w-4 h-4" />
                     </button>
@@ -230,7 +326,7 @@ export const OrderBoard: React.FC<OrderBoardProps> = ({ currentUser }) => {
                        <CalendarIcon className="w-4 h-4 text-gray-400" />
                        <div className="flex flex-col">
                           <span className="text-[10px] uppercase text-gray-400 font-bold">Entrega</span>
-                          <span className="text-sm font-mono font-bold text-gray-900 dark:text-white">{new Date(order.dueDate).toLocaleDateString('pt-BR')}</span>
+                          <span className="text-sm font-mono font-bold text-gray-900 dark:text-white">{formatDateDisplay(order.dueDate)}</span>
                        </div>
                     </div>
                 </div>
@@ -340,6 +436,19 @@ export const OrderBoard: React.FC<OrderBoardProps> = ({ currentUser }) => {
                   </select>
                 </div>
               </div>
+
+              {/* Campo de Data de Conclusão Manual (Aparece apenas se Concluído) */}
+              {formData.status === OrderStatus.COMPLETED && (
+                  <div className="bg-green-50 dark:bg-green-900/10 p-4 rounded-xl border border-green-100 dark:border-green-900/30 animate-in fade-in slide-in-from-top-2">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-green-700 dark:text-green-400 mb-2 ml-1">Data de Conclusão Real</label>
+                    <input
+                      type="date"
+                      className="w-full p-4 rounded-xl bg-white dark:bg-black border border-green-200 dark:border-green-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
+                      value={formData.completedAt?.split('T')[0] || ''}
+                      onChange={e => setFormData({ ...formData, completedAt: e.target.value })}
+                    />
+                  </div>
+              )}
             </div>
             
             <div className="flex justify-end gap-3 mt-10">

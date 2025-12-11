@@ -17,7 +17,9 @@ export const PerformanceAnalysis: React.FC = () => {
 
   // Filtros Básicos
   const monthlyOrders = orders.filter(o => {
-    const d = new Date(o.dueDate);
+    // Adiciona T12:00:00 se a data for apenas YYYY-MM-DD para evitar que o fuso jogue para o mês anterior
+    const dateToParse = o.dueDate.includes('T') ? o.dueDate : `${o.dueDate}T12:00:00`;
+    const d = new Date(dateToParse);
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   });
 
@@ -25,29 +27,31 @@ export const PerformanceAnalysis: React.FC = () => {
   const activeOrders = orders.filter(o => o.status === OrderStatus.IN_PROGRESS || o.status === OrderStatus.PENDING).length;
 
   // Lógica: Ranking de Urgência por Vendedor (Mês Atual)
-  const urgencyRanking = monthlyOrders.reduce((acc, order) => {
+  const urgencyRanking = monthlyOrders.reduce((acc: Record<string, number>, order: Order) => {
     if (order.priority === Priority.URGENTE && order.salesperson) {
-      acc[order.salesperson] = (acc[order.salesperson] || 0) + 1;
+      const currentCount = acc[order.salesperson] || 0;
+      acc[order.salesperson] = currentCount + 1;
     }
     return acc;
   }, {} as Record<string, number>);
 
   const sortedUrgencyList = Object.entries(urgencyRanking)
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, count]) => ({ name, count }));
+    .sort((a, b) => (b[1] as number) - (a[1] as number))
+    .map(([name, count]) => ({ name, count: count as number }));
 
   // Lógica: Volume Geral por Vendedor (Mês Atual)
-  const volumeRanking = monthlyOrders.reduce((acc, order) => {
+  const volumeRanking = monthlyOrders.reduce((acc: Record<string, number>, order: Order) => {
     if (order.salesperson) {
-      acc[order.salesperson] = (acc[order.salesperson] || 0) + 1;
+      const currentCount = acc[order.salesperson] || 0;
+      acc[order.salesperson] = currentCount + 1;
     }
     return acc;
   }, {} as Record<string, number>);
 
   const sortedVolumeList = Object.entries(volumeRanking)
-    .sort((a, b) => b[1] - a[1])
+    .sort((a, b) => (b[1] as number) - (a[1] as number))
     .slice(0, 5) // Top 5
-    .map(([name, count]) => ({ name, count }));
+    .map(([name, count]) => ({ name, count: count as number }));
     
   const maxVolume = sortedVolumeList.length > 0 ? sortedVolumeList[0].count : 1;
 

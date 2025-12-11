@@ -16,8 +16,10 @@ export const WeeklySchedule: React.FC = () => {
 
   const getOrdersForDay = (date: Date) => {
     return orders.filter(order => {
-      // Assuming dueDate is stored as ISO string
-      return isSameDay(parseISO(order.dueDate), date);
+      // Comparação via String (YYYY-MM-DD) é mais segura contra fuso horário do que Date objects
+      const orderDateStr = order.dueDate.split('T')[0];
+      const dayDateStr = format(date, 'yyyy-MM-dd');
+      return orderDateStr === dayDateStr;
     });
   };
 

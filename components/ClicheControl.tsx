@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRightLeft, Check, Send, Trash2, Plus, X } from 'lucide-react';
+import { ArrowRightLeft, Check, Send, Trash2, Plus, X, Calendar } from 'lucide-react';
 import { ClicheItem, User } from '../types';
 import { storageService } from '../services/storage';
 
@@ -12,6 +12,10 @@ export const ClicheControl: React.FC<ClicheControlProps> = ({ currentUser }) => 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [desc, setDesc] = useState('');
   const [client, setClient] = useState('');
+
+  // States for Receiving
+  const [receivingItem, setReceivingItem] = useState<ClicheItem | null>(null);
+  const [manualReceiveDate, setManualReceiveDate] = useState('');
 
   useEffect(() => {
     setItems(storageService.getCliches());
@@ -41,21 +45,33 @@ export const ClicheControl: React.FC<ClicheControlProps> = ({ currentUser }) => 
     setIsModalOpen(false);
   };
 
-  const handleReceive = (item: ClicheItem) => {
+  const handleReceiveClick = (item: ClicheItem) => {
+      setReceivingItem(item);
+      setManualReceiveDate(new Date().toISOString().split('T')[0]); // Default to today
+  };
+
+  const confirmReceive = () => {
+    if (!receivingItem) return;
+
+    // Use selected date + fixed time to avoid TZ issues
+    const finalDate = manualReceiveDate.includes('T') ? manualReceiveDate : `${manualReceiveDate}T12:00:00.000Z`;
+
     const updatedItem: ClicheItem = {
-      ...item,
+      ...receivingItem,
       status: 'received',
-      receivedDate: new Date().toISOString()
+      receivedDate: finalDate
     };
     const updated = storageService.saveCliche(updatedItem);
     setItems(updated);
     
     storageService.addLog(
       'Clichê Recebido',
-      `Recebeu clichê de ${item.client}`,
+      `Recebeu clichê de ${updatedItem.client}`,
       currentUser.name,
       'update'
     );
+
+    setReceivingItem(null);
   };
 
   const sentItems = items.filter(i => i.status === 'sent');
@@ -99,7 +115,7 @@ export const ClicheControl: React.FC<ClicheControlProps> = ({ currentUser }) => 
                   <div className="text-[10px] font-bold uppercase tracking-wider text-orange-500 mt-2">Enviado: {new Date(item.sentDate).toLocaleDateString()}</div>
                 </div>
                 <button 
-                  onClick={() => handleReceive(item)}
+                  onClick={() => handleReceiveClick(item)}
                   className="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-200 dark:hover:border-green-800 hover:text-green-600 transition-all shadow-sm"
                 >
                   Receber
@@ -179,6 +195,47 @@ export const ClicheControl: React.FC<ClicheControlProps> = ({ currentUser }) => 
               </div>
            </div>
         </div>
+      )}
+
+      {/* Modal Confirmar Recebimento */}
+      {receivingItem && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+           <div className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-sm p-8 shadow-2xl border border-gray-200 dark:border-white/10 relative">
+               <button 
+                onClick={() => setReceivingItem(null)}
+                className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+               
+               <div className="flex flex-col items-center text-center mb-6">
+                  <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 mb-4">
+                      <Check className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-black dark:text-white">Confirmar Recebimento</h3>
+                  <p className="text-gray-500 text-sm mt-1">Clichê de <strong>{receivingItem.client}</strong></p>
+               </div>
+
+               <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2 ml-1">Data do Recebimento</label>
+                    <input 
+                      type="date"
+                      value={manualReceiveDate}
+                      onChange={e => setManualReceiveDate(e.target.value)}
+                      className="w-full p-4 rounded-xl bg-gray-50 dark:bg-black border border-gray-200 dark:border-zinc-800 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
+                    />
+                  </div>
+
+                  <button 
+                    onClick={confirmReceive}
+                    className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs shadow-lg"
+                  >
+                    Confirmar
+                  </button>
+               </div>
+           </div>
+         </div>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Shield, User as UserIcon, Trash2, Plus, Smartphone, QrCode, X, Monitor, Upload, Camera, Eye, EyeOff, Download, Upload as UploadIcon, FileText, Lock, Info, Database } from 'lucide-react';
+import { User, Shield, User as UserIcon, Trash2, Plus, Smartphone, QrCode, X, Monitor, Upload, Camera, Eye, EyeOff, Download, Upload as UploadIcon, FileText, Lock, Info, Database, ScanLine, Wifi, AlertCircle } from 'lucide-react';
 import { storageService } from '../services/storage';
 import { User as UserType } from '../types';
 
@@ -51,13 +51,16 @@ export const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) =
 
   // Device Connection States
   const [showDeviceModal, setShowDeviceModal] = useState(false);
-  const [pairingCode, setPairingCode] = useState('');
+  const [currentServerIp, setCurrentServerIp] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setUsers(storageService.getUsers());
+    // Get stored server IP or try to infer context
+    const storedIp = storageService.getServerIp();
+    setCurrentServerIp(storedIp || '');
   }, []);
 
   // SECURITY CHECK
@@ -155,8 +158,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) =
   };
 
   const openDeviceModal = () => {
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setPairingCode(code);
+    // If no IP is configured, we can't generate a valid QR code
     setShowDeviceModal(true);
   };
 
@@ -196,6 +198,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) =
           }
       }
     }
+  };
+
+  const getQRData = () => {
+     if (!currentServerIp) return '';
+     return `http://${currentServerIp}:3001`;
   };
 
   return (
@@ -239,7 +246,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) =
                 className="group flex items-center px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold shadow-xl shadow-black/20 dark:shadow-white/10 hover:scale-105 transition-all uppercase tracking-wide text-xs"
             >
                 <QrCode className="w-4 h-4 mr-2 group-hover:animate-pulse" />
-                Conectar
+                Conectar Mobile
             </button>
           </div>
        </div>
@@ -434,45 +441,70 @@ export const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) =
         </div>
       </div>
 
-      {/* Modal de Conectar Dispositivo */}
+      {/* Modal de Conectar Dispositivo - ESTILO CYBERPUNK MINIMALISTA */}
       {showDeviceModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl p-8 relative shadow-2xl border border-gray-200 dark:border-white/10">
-            <button 
-              onClick={() => setShowDeviceModal(false)}
-              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 animate-in fade-in duration-300">
+          <div className="bg-white/10 dark:bg-zinc-950/80 w-full max-w-sm rounded-[2rem] p-1 relative shadow-2xl border border-white/20 dark:border-white/10 overflow-hidden group">
+            
+            {/* Background Glow Effect */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 via-purple-500/10 to-pink-500/10 opacity-50 blur-xl pointer-events-none"></div>
 
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center p-2 rounded-2xl bg-white dark:bg-white mb-4 shadow-lg">
-                <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${pairingCode}&color=000000`} 
-                    alt="QR Code" 
-                    className="w-32 h-32 rounded-lg"
-                />
-              </div>
-              <h3 className="text-2xl font-black text-gray-900 dark:text-white">Parear Terminal</h3>
-              <p className="text-gray-500 mt-2 text-sm">Escaneie para conectar este painel.</p>
-            </div>
+            <div className="bg-white dark:bg-zinc-950 rounded-[1.8rem] p-8 relative overflow-hidden">
+                <button 
+                  onClick={() => setShowDeviceModal(false)}
+                  className="absolute top-4 right-4 p-2 text-gray-400 hover:text-black dark:hover:text-white transition-colors z-20"
+                >
+                  <X className="w-6 h-6" />
+                </button>
 
-            <div className="bg-gray-50 dark:bg-black/50 rounded-xl p-8 mb-8 border border-gray-100 dark:border-white/5">
-               <div className="text-center">
-                  <div className="text-[10px] font-bold uppercase text-gray-400 tracking-[0.2em] mb-2">Código de Acesso</div>
-                  <div className="text-5xl font-mono font-bold text-black dark:text-white tracking-widest select-all">
-                    {pairingCode}
+                <div className="flex flex-col items-center justify-center relative z-10">
+                  <div className="flex items-center gap-2 mb-6 opacity-70">
+                     <Wifi className="w-4 h-4 text-green-500 animate-pulse" />
+                     <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Mobile Connect</span>
                   </div>
-               </div>
-            </div>
 
-            <div className="space-y-3">
-              <button 
-                onClick={() => setPairingCode(Math.floor(100000 + Math.random() * 900000).toString())}
-                className="w-full py-4 bg-black dark:bg-white text-white dark:text-black font-bold rounded-xl hover:opacity-90 transition-opacity uppercase tracking-widest text-xs"
-              >
-                Gerar Novo Código
-              </button>
+                  {/* QR Container Stylized */}
+                  <div className="relative group cursor-pointer mb-6">
+                       {currentServerIp ? (
+                        <>
+                           <div className="absolute -inset-1 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-700"></div>
+                           <div className="relative p-3 bg-white rounded-xl border-4 border-white dark:border-zinc-900 shadow-xl overflow-hidden">
+                              <img 
+                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(getQRData())}&color=000000&bgcolor=ffffff`} 
+                                  alt="QR Code" 
+                                  className="w-40 h-40 rounded-lg"
+                              />
+                              {/* Scan Line Animation */}
+                              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/10 to-transparent h-full w-full animate-pulse pointer-events-none" style={{ animationDuration: '2s' }}></div>
+                           </div>
+                        </>
+                       ) : (
+                         <div className="w-40 h-40 bg-gray-100 dark:bg-zinc-800 rounded-xl flex flex-col items-center justify-center p-4 text-center">
+                            <AlertCircle className="w-8 h-8 text-gray-400 mb-2" />
+                            <p className="text-[10px] text-gray-500">IP do Servidor não configurado neste terminal.</p>
+                         </div>
+                       )}
+                  </div>
+
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight mb-1">Acesso Remoto</h3>
+                  <p className="text-xs text-gray-500 text-center px-4 leading-relaxed mb-6">
+                    Aponte a câmera para acessar o sistema pelo celular ou tablet na mesma rede Wi-Fi.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                   {/* Code Display */}
+                   <div className="bg-gray-50 dark:bg-black/40 rounded-2xl p-4 border border-gray-200 dark:border-white/10 flex flex-col items-center">
+                      <span className="text-[9px] font-bold uppercase text-gray-400 tracking-[0.2em] mb-1">Endereço Manual</span>
+                      {currentServerIp ? (
+                         <div className="font-mono text-lg font-black text-gray-900 dark:text-white tracking-widest select-all">
+                            http://{currentServerIp}:3001
+                         </div>
+                      ) : (
+                         <div className="text-xs text-red-400 font-bold">Configure o IP na tela de Login</div>
+                      )}
+                   </div>
+                </div>
             </div>
           </div>
         </div>

@@ -30,6 +30,16 @@ function App() {
         document.documentElement.classList.remove('dark');
       }
       
+      // Verificar sessão salva (Lembrar de mim)
+      const savedUserId = storageService.getSavedUserSession();
+      if (savedUserId) {
+        const users = storageService.getUsers();
+        const savedUser = users.find(u => u.id === savedUserId);
+        if (savedUser) {
+          setCurrentUser(savedUser);
+        }
+      }
+
       // Simular um pequeno delay estético se o DB carregar muito rápido
       setTimeout(() => setIsInitializing(false), 800);
     };
@@ -48,6 +58,7 @@ function App() {
   };
 
   const handleLogout = () => {
+    storageService.clearUserSession();
     setCurrentUser(null);
   };
 
